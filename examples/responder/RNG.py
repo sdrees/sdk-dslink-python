@@ -1,6 +1,7 @@
 import random
 
-from dslink.DSLink import DSLink, Configuration
+from dslink.Configuration import Configuration
+from dslink.DSLink import DSLink
 from dslink.Node import Node
 from twisted.internet import reactor
 
@@ -118,4 +119,4 @@ class RNGDSLink(DSLink):
         reactor.callLater(self.speed, self.update_rng)
 
 if __name__ == "__main__":
-    RNGDSLink(Configuration("python-rng", responder=True, requester=True))
+    RNGDSLink(Configuration("python-rng", responder=True))

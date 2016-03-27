@@ -17,6 +17,7 @@ class Responder:
         self.subscription_manager = LocalSubscriptionManager(link)
         self.stream_manager = StreamManager(link)
         self.profile_manager = ProfileManager(link)
+        self.super_root = None
 
     def start(self):
         """
@@ -25,7 +26,7 @@ class Responder:
         """
         # Load or create an empty Node structure
         self.super_root = self.load_nodes()
-        self.create_defs()
+        self._create_defs()
 
         # Start saving timer
         if not self.link.config.no_save_nodes:
@@ -33,12 +34,12 @@ class Responder:
 
     def get_super_root(self):
         """
-        Get Super Root.
-        :return: Super Root.
+        Get Super Root node, which provides the "root" of our DSLink's tree.
+        :return: Super Root node.
         """
         return self.super_root
 
-    def create_defs(self):
+    def _create_defs(self):
         """
         Create /defs/ Node.
         """
@@ -48,7 +49,7 @@ class Responder:
         defs.add_child(Node("profile", defs))
         self.get_super_root().add_child(defs)
 
-    def create_empty_super_root(self):
+    def _create_empty_super_root(self):
         """
         Create empty super root.
         :return: Empty Super Root.
@@ -83,12 +84,12 @@ class Responder:
                         return Node.from_json(obj, None, "", link=self.link)
                     except:
                         self.link.logger.error("Unable to restore nodes, using default")
-                        return self.link.get_default_nodes(self.create_empty_super_root())
+                        return self.link.get_default_nodes(self._create_empty_super_root())
                 else:
                     self.link.logger.warn("Backup nodes data doesn't exist, using default")
-                    return self.link.get_default_nodes(self.create_empty_super_root())
+                    return self.link.get_default_nodes(self._create_empty_super_root())
         else:
-            return self.link.get_default_nodes(self.create_empty_super_root())
+            return self.link.get_default_nodes(self._create_empty_super_root())
 
     def save_timer(self):
         """

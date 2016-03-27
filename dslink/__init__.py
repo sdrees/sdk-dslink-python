@@ -1,4 +1,5 @@
-from dslink.DSLink import DSLink, Configuration
+from dslink.Configuration import Configuration
+from dslink.DSLink import DSLink
 from dslink.Node import Node
 from dslink.Permission import Permission
 from dslink.Profile import Profile
@@ -7,8 +8,8 @@ from dslink.Response import *
 from dslink.Value import Value
 
 __title__ = "dslink"
-__version__ = "0.6.6"
+__version__ = "0.7.0-rc1"
 __author__ = "Logan Gorence"
 
 __license__ = "Apache 2.0"
-__copyright__ = "Copyright 2015 DGLogik Inc."
+__copyright__ = "Copyright 2015-2016 DGLogik Inc."
