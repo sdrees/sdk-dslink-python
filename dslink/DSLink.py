@@ -80,6 +80,7 @@ class DSLink:
         reactor.removeAll()
         reactor.iterate()
         reactor.stop()
+        sys.exit(0)
 
     # noinspection PyMethodMayBeStatic
     def get_default_nodes(self, super_root):
