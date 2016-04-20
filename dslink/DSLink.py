@@ -51,6 +51,7 @@ class DSLink:
         self.handshake = Handshake(self, self.keypair)
         self.handshake.run_handshake()
         self.dsid = self.handshake.get_dsid()
+        self.config.dsid = self.config.dsid
 
         # Connection setup
         self.wsp = None
@@ -108,8 +109,9 @@ class DSLink:
         websocket_uri = self.config.broker[:-5].replace("http", "ws") + "/ws?dsId=%s" % self.dsid
         if self.needs_auth:
             websocket_uri += "&auth=%s" % self.get_auth()
-        if self.config.using_token():
-            websocket_uri += "&token=%s" % self.config.token
+        token = self.config.token_hash()
+        if token is not None:
+            websocket_uri += token
         url = urlparse(websocket_uri)
         if url.port is None:
             port = 80
@@ -156,5 +158,4 @@ class DSLink:
         :return: DelayedCall instance.
         """
         return reactor.callLater(delay, call, *args, **kw)
-
 

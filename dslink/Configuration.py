@@ -52,3 +52,12 @@ class Configuration:
 
     def using_token(self):
         return self.token is not None
+
+    def token_hash(self):
+        if self.token is not None and len(self.token) > 16:
+            token_id = self.token[0:16]
+            hash_str = base64.urlsafe_b64encode(hashlib.sha256(self.dsid + self.token)).decode("utf-8").replace("=", "")
+            return "&token=" + token_id + hash_str
+        else:
+            return None
+
