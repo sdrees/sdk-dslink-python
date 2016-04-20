@@ -52,11 +52,13 @@ class Configuration:
         elif self.log_level == "none":
             self.log_level = logging.NOTSET
 
-    def using_token(self):
-        return self.token is not None
-
     @staticmethod
     def token_hash(dsid, token):
+        """
+        Method that returns the token hash from given dsid and token.
+        :param dsid: DS Id.
+        :param token: DSLink token.
+        """
         if token is not None and len(token) > 16:
             token_id = token[0:16]
             hash_str = base64.urlsafe_b64encode(hashlib.sha256((dsid + token)).digest()).decode("utf-8").replace("=", "")

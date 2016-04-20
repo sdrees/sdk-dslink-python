@@ -6,5 +6,5 @@ dist/
 dslink.egg-info/
 __pycache__
 *.pyc
-nodes.json
-nodes.json.bak
+*nodes.json
+*nodes.json.bak

@@ -1,8 +1,8 @@
-import random
-
 from dslink.Configuration import Configuration
 from dslink.DSLink import DSLink
 from dslink.Node import Node
+
+import random
 from twisted.internet import reactor
 
 
@@ -26,7 +26,7 @@ class RNGDSLink(DSLink):
         self.update_rng()
 
     def get_default_nodes(self, super_root):
-        create_rng = Node("create_rng", super_root)
+        create_rng = super_root.create_child("create_rng")
         create_rng.set_display_name("Create RNG")
         create_rng.set_config("$is", "create_rng")
         create_rng.set_invokable("config")
@@ -43,7 +43,7 @@ class RNGDSLink(DSLink):
             }
         ])
 
-        set_speed = Node("set_speed", super_root)
+        set_speed = super_root.create_child("set_speed")
         set_speed.set_display_name("Set Speed")
         set_speed.set_config("$is", "set_speed")
         set_speed.set_invokable("config")
@@ -60,23 +60,18 @@ class RNGDSLink(DSLink):
             }
         ])
 
-        super_root.add_child(create_rng)
-        super_root.add_child(set_speed)
-
         return super_root
 
     def create_rng(self, data):
         name = data[1]["Name"]
         if self.responder.get_super_root().get("/%s" % name) is None:
-            rng = Node(name, self.responder.get_super_root())
+            rng = self.responder.get_super_root().create_child(name)
             rng.set_config("$is", "rng")
             rng.set_type("number")
             rng.set_value(0)
-            self.responder.get_super_root().add_child(rng)
-            delete = Node("delete", rng)
+            delete = rng.create_child("delete")
             delete.set_config("$is", "delete_rng")
             delete.set_invokable("config")
-            rng.add_child(delete)
             self.rngs[name] = rng
             return [
                 [
@@ -115,4 +110,4 @@ class RNGDSLink(DSLink):
         reactor.callLater(self.speed, self.update_rng)
 
 if __name__ == "__main__":
-    RNGDSLink(Configuration("python-rng", responder=True))
+    RNGDSLink(Configuration("python-rng", responder=True, nodes_path="rng.nodes.json"))
