@@ -1,0 +1,19 @@
+{
+  "exclude": [
+    "(setup.cfg)",
+    "(setup.py)",
+    "(tests/)",
+    "(examples/)"
+  ],
+  "linters": {
+    "chmod": {
+      "type": "chmod"
+    },
+    "spelling": {
+      "type": "spelling"
+    },
+    "pylint": {
+      "type": "pylint"
+    }
+  }
+}
