@@ -8,7 +8,7 @@ from dslink.Response import *
 from dslink.Value import Value
 
 __title__ = "dslink"
-__version__ = "0.7.0-rc1"
+__version__ = "0.7.0"
 __author__ = "Logan Gorence"
 
 __license__ = "Apache 2.0"
