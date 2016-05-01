@@ -1,9 +1,11 @@
-import os.path
-import json
-from twisted.internet import reactor
-
+from __future__ import print_function
 from dslink.Profile import ProfileManager
 from dslink.Node import Node
+
+import json
+import os.path
+from threading import Lock
+from twisted.internet import task
 
 
 class Responder:
@@ -30,7 +32,7 @@ class Responder:
 
         # Start saving timer
         if not self.link.config.no_save_nodes:
-            reactor.callLater(1, self.save_timer)
+            task.LoopingCall(self.save_nodes).start(5)
 
     def get_super_root(self):
         """
@@ -70,7 +72,7 @@ class Responder:
                 obj = json.load(nodes_file)
                 nodes_file.close()
                 return Node.from_json(obj, None, "", link=self.link)
-            except Exception, e:
+            except Exception as e:
                 print(e)
                 self.link.logger.error("Unable to load nodes data")
                 if os.path.exists(nodes_path + ".bak"):
@@ -91,13 +93,6 @@ class Responder:
         else:
             return self.link.get_default_nodes(self._create_empty_super_root())
 
-    def save_timer(self):
-        """
-        Save timer, schedules to call itself every 5 seconds by default.
-        """
-        self.save_nodes()
-        reactor.callLater(5, self.save_timer)
-
     def save_nodes(self):
         """
         Save the nodes.json out to disk if changed, and create the bak file.
@@ -115,6 +110,14 @@ class Responder:
             self.nodes_changed = False
 
 
+# TODO: maybe rename to something more fitting?
+class Subscription:
+    def __init__(self, path, sids, qos):
+        self.path = path
+        self.sids = sids
+        self.qos = qos
+
+
 class LocalSubscriptionManager:
     """
     Manages subscriptions to local Nodes.
@@ -122,27 +125,83 @@ class LocalSubscriptionManager:
 
     def __init__(self, link):
         self.link = link
-        self.subscriptions = {}
+        self.value_lock = Lock()
+        self.path_subs = {}
+        self.sids_path = {}
+        subs = self.link.storage.read()
+        for path in subs:
+            sub = subs[path]
+            self.path_subs[path] = Subscription(path, [], sub["qos"])
 
-    def subscribe(self, node, sid):
+    def get_sub(self, path):
+        path = Node.normalize_path(path, True)
+        if path not in self.path_subs:
+            return None
+        return self.path_subs[path]
+
+    def add_value_sub(self, node, sid, qos=0):
         """
         Store a Subscription to a Node.
         :param node: Node to subscribe to.
         :param sid: SID of Subscription.
+        :param qos: Quality of Service.
         """
-        self.subscriptions[sid] = node
-        self.subscriptions[sid].add_subscriber(sid)
+        path = Node.normalize_path(node.path, True)
 
-    def unsubscribe(self, sid):
+        if path not in self.path_subs:
+            sub = Subscription(path, [sid], qos)
+            self.path_subs[path] = sub
+        else:
+            self.path_subs[path].sids.append(sid)
+            # Set the QoS to the highest requested.
+            if self.path_subs[path].qos < qos:
+                self.path_subs[path].qos = qos
+        self.sids_path[sid] = path
+        # TODO: qos updates
+        updates = self.link.storage.get_updates(path, sid)
+        if updates is not None:
+            self.link.wsp.sendMessage({
+                "responses": [
+                    {
+                        "rid": 0,
+                        "updates": updates
+                    }
+                ]
+            })
+        else:
+            node.update_subscribers_values()
+
+    def remove_value_sub(self, sid):
         """
         Remove a Subscription to a Node.
         :param sid: SID of Subscription.
         """
-        try:
-            self.subscriptions[sid].remove_subscriber(sid)
-            del self.subscriptions[sid]
-        except KeyError:
-            self.link.logger.debug("Unknown sid %s" % sid)
+        if sid in self.sids_path:
+            path = self.sids_path[sid]
+            del self.sids_path[sid]
+            if path in self.path_subs:
+                self.path_subs[path].sids.remove(sid)
+
+    def send_value_update(self, node):
+        msg = {
+            "responses": []
+        }
+        for sid in self.path_subs[node.path].sids:
+            # TODO: below
+            if not self.link.active and self.path_subs[node.path].qos > 0:
+                self.link.storage.store(self.path_subs[node.path], node.value)
+            msg["responses"].append({
+                "rid": 0,
+                "updates": [
+                    [
+                        sid,
+                        node.value.value,
+                        node.value.updated_at.isoformat()
+                    ]
+                ]
+            })
+        if len(msg["responses"]) is not 0:
+            self.link.wsp.sendMessage(msg)
 
 
 class StreamManager:

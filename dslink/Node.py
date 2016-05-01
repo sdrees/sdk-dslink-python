@@ -1,9 +1,9 @@
+from dslink.Response import Response
+from dslink.Value import Value
+
 from collections import OrderedDict
 import logging
 from threading import Lock
-
-from dslink.Response import Response
-from dslink.Value import Value
 
 
 class Node:
@@ -29,7 +29,6 @@ class Node:
         self.children_lock = Lock()
         self.config = OrderedDict([("$is", "node")])
         self.attributes = OrderedDict()
-        self.subscribers = []
         self.streams = []
         self.removed_children = []
         self.removed_children_lock = Lock()
@@ -85,7 +84,6 @@ class Node:
         i = self.value.set_value(value, check)
         if i and (not self.standalone or self.link_is_active()):
             self.nodes_changed()
-            # Update any subscribers
             self.update_subscribers_values()
             if trigger_callback:
                 if hasattr(self.set_value_callback, "__call__"):
@@ -353,10 +351,13 @@ class Node:
 
     def is_subscribed(self):
         """
-        Is the Node subscribed to?
+        Check whether the Node is subscribed to.
         :return: True if the Node is subscribed to.
         """
-        return len(self.subscribers) is not 0
+        sub = self.link.responder.subscription_manager.get_sub(self.path)
+        if sub is None:
+            return False
+        return len(sub.sids) is not 0
 
     def invoke(self, params):
         """
@@ -392,37 +393,7 @@ class Node:
         Update all Subscribers of a Value change.
         """
         if self.value.has_value():
-            msg = {
-                "responses": []
-            }
-            for s in self.subscribers:
-                msg["responses"].append({
-                    "rid": 0,
-                    "updates": [
-                        [
-                            s,
-                            self.value.value,
-                            self.value.updated_at.isoformat()
-                        ]
-                    ]
-                })
-            if len(msg["responses"]) is not 0:
-                self.link.wsp.sendMessage(msg)
-
-    def add_subscriber(self, sid):
-        """
-        Add a Subscriber.
-        :param sid: Subscriber ID.
-        """
-        self.subscribers.append(sid)
-        self.update_subscribers_values()
-
-    def remove_subscriber(self, sid):
-        """
-        Remove a Subscriber.
-        :param sid: Subscriber ID.
-        """
-        self.subscribers.remove(sid)
+            self.link.responder.subscription_manager.send_value_update(self)
 
     def to_json(self):
         """
@@ -473,6 +444,22 @@ class Node:
 
         return node
 
+    @staticmethod
+    def normalize_path(path, leading):
+        """
+        :param path: Path to normalize.
+        :param leading: True if leading forward slash is kept/added, false if not.
+        :return: Normalized path.
+        """
+        if not leading and path.startswith("/"):
+            path = path[1:]
+        elif leading and not path.startswith("/"):
+            path = "/" + path
+        if path.endswith("/"):
+            path = path[:-1]
+
+        return path
+
 
 class RemoteNode(Node):
     def __init__(self, name, parent, parent_path=None):
@@ -491,12 +478,6 @@ class RemoteNode(Node):
         pass
 
     def add_child(self, child):
-        pass
-
-    def add_subscriber(self, sid):
-        pass
-
-    def remove_subscriber(self, sid):
         pass
 
     def nodes_changed(self):

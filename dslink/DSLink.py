@@ -1,3 +1,11 @@
+from dslink.Crypto import Keypair
+from dslink.Handshake import Handshake
+from dslink.Requester import Requester
+from dslink.Responder import Responder
+from dslink.WebSocket import WebSocket
+from dslink.storage.FileStorage import FileStorage
+
+import argparse
 import base64
 import hashlib
 import logging
@@ -5,12 +13,6 @@ from urlparse import urlparse
 import signal
 import sys
 from twisted.internet import reactor
-
-from dslink.Crypto import Keypair
-from dslink.Handshake import Handshake
-from dslink.Requester import Requester
-from dslink.Responder import Responder
-from dslink.WebSocket import WebSocket
 
 
 class DSLink:
@@ -30,6 +32,7 @@ class DSLink:
         # DSLink Configuration
         self.config = config
         self.server_config = None
+        self.storage = FileStorage(self)
 
         # Logger setup
         self.logger = self.create_logger("DSLink", self.config.log_level)
@@ -69,21 +72,19 @@ class DSLink:
         """
         pass
 
-    def stop(*args):
+    # noinspection PyUnresolvedReferences
+    def stop(self, *args):
         """
         Called when the DSLink is going to stop.
         Override this if you start any threads you need to stop.
         Be sure to call the super function.
         :param args: Signal arguments.
-        :return:
         """
+        if self.wsp is not None:
+            reactor.callFromThread(self.wsp.sendClose)
         reactor.removeAll()
         reactor.iterate()
         reactor.stop()
-        try:
-            sys.exit(0)
-        except SystemExit:
-            pass
 
     # noinspection PyMethodMayBeStatic
     def get_default_nodes(self, super_root):
@@ -138,17 +139,6 @@ class DSLink:
         logger.setLevel(log_level)
         logger.addHandler(ch)
         return logger
-
-    @staticmethod
-    def add_padding(string):
-        """
-        Add padding to a URL safe base64 string.
-        :param string:
-        :return:
-        """
-        while len(string) % 4 != 0:
-            string += "="
-        return string
 
     @staticmethod
     def call_later(delay, call, *args, **kw):

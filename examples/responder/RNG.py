@@ -104,6 +104,7 @@ class RNGDSLink(DSLink):
                 self.rngs[node.name] = node
 
     def update_rng(self):
+        self.logger.debug("Updated RNG values")
         for rng in self.rngs:
             if self.rngs[rng].is_subscribed():
                 self.rngs[rng].set_value(random.randint(0, 1000))
